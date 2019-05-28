@@ -228,11 +228,9 @@ endif()
 if(LIBVNCSERVER_HAVE_SYS_UIO_H)
   if(WITH_GCRYPT AND LIBGCRYPT_LIBRARIES)
     message(STATUS "Building crypto with Libgcrypt")
-    set(CRYPTO_LIBRARIES ${LIBGCRYPT_LIBRARIES})
     set(CRYPTO_SOURCES ${COMMON_DIR}/rfbcrypto_libgcrypt)
   elseif(OPENSSL_FOUND)
     message(STATUS "Building crypto with OpenSSL")
-    set(CRYPTO_LIBRARIES ${OPENSSL_LIBRARIES})
     set(CRYPTO_SOURCES ${COMMON_DIR}/rfbcrypto_openssl)
   else()
     message(STATUS "Building crypto with builtin functions")
@@ -475,7 +473,6 @@ target_link_libraries(vncserver
                       ${LZO_LIBRARIES}
                       ${JPEG_LIBRARIES}
 		      ${PNG_LIBRARIES}
-		      ${CRYPTO_LIBRARIES}
                       ${GNUTLS_LIBRARIES}
                       ${OPENSSL_LIBRARIES}
 )
