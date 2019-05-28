@@ -114,6 +114,7 @@ endif()
 
 
 if(WITH_THREADS)
+  set(THREADS_PREFER_PTHREAD_FLAG TRUE)
   find_package(Threads)
 endif()
 
@@ -194,11 +195,13 @@ check_symbol_exists(htobe64 "endian.h" LIBVNCSERVER_HAVE_HTOBE64)
 check_symbol_exists(OSSwapHostToBigInt64 "libkern/OSByteOrder.h" LIBVNCSERVER_HAVE_OSSWAPHOSTTOBIGINT64)
 
 if(Threads_FOUND)
-  set(ADDITIONAL_LIBS ${ADDITIONAL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+  list(APPEND ADDITIONAL_RAW_LIBS ${CMAKE_THREAD_LIBS_INIT})
+  list(APPEND ADDITIONAL_TARGETS Threads::Threads)
 endif()
 if(ZLIB_FOUND)
   set(LIBVNCSERVER_HAVE_LIBZ 1)
-  list(APPEND ADDITIONAL_LIBS ${ZLIB_LIBRARIES})
+  list(APPEND ADDITIONAL_RAW_LIBS ${ZLIB_LIBRARIES})
+  list(APPEND ADDITIONAL_TARGETS ZLIB::ZLIB)
 endif()
 if(LZO_FOUND)
   set(LIBVNCSERVER_HAVE_LZO 1)
@@ -214,7 +217,8 @@ else()
   unset(PNG_LIBRARIES) # would otherwise contain -NOTFOUND, confusing target_link_libraries()
 endif()
 if(OPENSSL_FOUND)
-  list(APPEND ADDITIONAL_LIBS ${OPENSSL_LIBRARIES})
+  list(APPEND ADDITIONAL_RAW_LIBS ${OPENSSL_LIBRARIES})
+  list(APPEND ADDITIONAL_TARGETS OpenSSL::SSL OpenSSL::Crypto)
 endif()
 if(SYSTEMD_FOUND)
   add_definitions(-DLIBVNCSERVER_WITH_SYSTEMD)
@@ -369,7 +373,6 @@ elseif(OPENSSL_FOUND)
     ${LIBVNCSERVER_SOURCES}
     ${LIBVNCSERVER_DIR}/rfbssl_openssl.c
   )
-  include_directories(${OPENSSL_INCLUDE_DIR})
 else()
   set(LIBVNCCLIENT_SOURCES
     ${LIBVNCCLIENT_SOURCES}
@@ -390,7 +393,6 @@ endif()
 
 if(ZLIB_FOUND)
   add_definitions(-DLIBVNCSERVER_HAVE_LIBZ)
-  include_directories(${ZLIB_INCLUDE_DIR})
   set(LIBVNCSERVER_SOURCES
     ${LIBVNCSERVER_SOURCES}
     ${LIBVNCSERVER_DIR}/zlib.c
@@ -459,9 +461,11 @@ endif()
 
 target_link_libraries(vncclient
                       ${ADDITIONAL_LIBS}
+                      ${ADDITIONAL_TARGETS}
 )
 target_link_libraries(vncserver
                       ${ADDITIONAL_LIBS}
+                      ${ADDITIONAL_TARGETS}
 		      ${PNG_LIBRARIES}
 )
 
@@ -540,14 +544,14 @@ foreach(e ${LIBVNCSERVER_EXAMPLES})
   add_executable(examples_${e} ${LIBVNCSRVEXAMPLE_DIR}/${e}.c)
   set_target_properties(examples_${e} PROPERTIES OUTPUT_NAME ${e})
   set_target_properties(examples_${e} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/examples)
-  target_link_libraries(examples_${e} vncserver ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(examples_${e} vncserver Threads::Threads)
 endforeach(e ${LIBVNCSERVER_EXAMPLES})
 
 foreach(e ${LIBVNCCLIENT_EXAMPLES})
   add_executable(client_examples_${e} ${LIBVNCCLIEXAMPLE_DIR}/${e}.c ${LIBVNCCLIEXAMPLE_DIR}/${${e}_EXTRA_SOURCES} )
   set_target_properties(client_examples_${e} PROPERTIES OUTPUT_NAME ${e})
   set_target_properties(client_examples_${e} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/client_examples)
-  target_link_libraries(client_examples_${e} vncclient ${CMAKE_THREAD_LIBS_INIT} ${SDL2_LIBRARY} ${FFMPEG_LIBRARIES})
+  target_link_libraries(client_examples_${e} vncclient Threads::Threads ${SDL2_LIBRARY} ${FFMPEG_LIBRARIES})
 endforeach(e ${LIBVNCCLIENT_EXAMPLES})
 
 
@@ -643,9 +647,9 @@ function(get_link_libraries OUT EXTRA_LIBS)
 endfunction()
 
 if(NOT WIN32)
-  get_link_libraries(PRIVATE_LIBS "${PNG_LIBRARIES}")
+  get_link_libraries(PRIVATE_LIBS "${PNG_LIBRARIES};${ADDITIONAL_RAW_LIBS}")
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libvncserver.pc.cmakein ${CMAKE_CURRENT_BINARY_DIR}/libvncserver.pc @ONLY)
-  get_link_libraries(PRIVATE_LIBS "")
+  get_link_libraries(PRIVATE_LIBS "${ADDITIONAL_RAW_LIBS}")
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libvncclient.pc.cmakein ${CMAKE_CURRENT_BINARY_DIR}/libvncclient.pc @ONLY)
 endif()
 
